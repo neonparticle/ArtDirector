@@ -1,0 +1,276 @@
+@import "tailwindcss" source("../");
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --color-void: #070504;
+  --color-iron-950: #110b09;
+  --color-iron-900: #1a1210;
+  --color-iron-700: #2a1f1a;
+  --color-iron-500: #3c2e26;
+  --color-rust: #6e2a1c;
+  --color-blood: #7a1c16;
+  --color-ember: #c45428;
+  --color-gold: #e8aa00;
+  --color-bone: #cbb896;
+  --color-dust: #7a6e58;
+  --color-arc: #b83e4c;
+  --color-plasma: #b06cff;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  --animate-ember-pulse: ember-pulse 2.6s ease-in-out infinite;
+  --animate-scan-sweep: scan-sweep 1.6s linear infinite;
+}
+
+@keyframes ember-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes scan-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.35rem;
+  --background: #070504;
+  --foreground: #cbb896;
+  --card: #1a1210;
+  --card-foreground: #cbb896;
+  --popover: #1a1210;
+  --popover-foreground: #cbb896;
+  --primary: #c45428;
+  --primary-foreground: #070504;
+  --secondary: #2a1f1a;
+  --secondary-foreground: #cbb896;
+  --muted: #2a1f1a;
+  --muted-foreground: #7a6e58;
+  --accent: #2a1f1a;
+  --accent-foreground: #e8aa00;
+  --destructive: #7a1c16;
+  --destructive-foreground: #cbb896;
+  --border: #3c2e26;
+  --input: #3c2e26;
+  --ring: #c45428;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+
+  html,
+  body,
+  #root {
+    @apply bg-void text-bone font-sans antialiased;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+
+  input,
+  textarea,
+  [data-selectable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-ember) 40%, transparent);
+    color: var(--color-bone);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-iron-700);
+    border: 2px solid var(--color-void);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-rust);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@utility forge-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-iron-500) 18%,
+    var(--color-ember) 50%,
+    var(--color-iron-500) 82%,
+    transparent 100%
+  );
+}
+
+@utility forge-panel {
+  background-color: color-mix(in srgb, var(--color-iron-900) 88%, transparent);
+  border: 1px solid var(--color-iron-500);
+}
+
+/* Machined grid behind the viewer stage. */
+@utility forge-grid {
+  background-image:
+    linear-gradient(to right, rgba(104, 78, 62, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(104, 78, 62, 0.35) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 90% at 50% 100%, black 0%, rgba(0, 0, 0, 0.5) 45%, transparent 85%);
+}
+
+@utility forge-coalglow {
+  background:
+    radial-gradient(
+      75% 42% at 50% 104%,
+      rgba(232, 140, 48, 0.22) 0%,
+      rgba(196, 84, 40, 0.12) 34%,
+      rgba(122, 28, 22, 0.05) 62%,
+      transparent 84%
+    ),
+    radial-gradient(42% 30% at 14% 106%, rgba(196, 84, 40, 0.14) 0%, transparent 76%),
+    radial-gradient(42% 30% at 86% 106%, rgba(232, 170, 0, 0.09) 0%, transparent 76%);
+}
+
+@utility forge-dotgrid {
+  background-image: radial-gradient(rgba(104, 78, 62, 0.45) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+@utility forge-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(203, 184, 150, 0.035) 0px,
+    rgba(203, 184, 150, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+@utility forge-vignette {
+  background:
+    radial-gradient(
+      110% 80% at 50% 40%,
+      transparent 55%,
+      color-mix(in srgb, var(--color-void) 70%, transparent) 100%
+    );
+}
+
+/* Transparency backgrounds for the stage and tiles. */
+@utility bg-checker {
+  background-color: #2a1f1a;
+  background-image:
+    linear-gradient(45deg, #1a1210 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1210 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1210 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1210 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+@utility bg-checker-subtle {
+  background-color: #140e0c;
+  background-image:
+    linear-gradient(45deg, #1a1210 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1210 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1210 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1210 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+/* Ember glow for hovered and selected gallery tiles. */
+@utility tile-glow {
+  box-shadow:
+    0 0 0 1px var(--color-ember),
+    0 0 18px -2px rgba(196, 84, 40, 0.55),
+    inset 0 -24px 32px -24px rgba(232, 140, 48, 0.35);
+}
+
+@utility tile-hover {
+  box-shadow:
+    0 0 0 1px var(--color-iron-500),
+    0 8px 24px -12px rgba(196, 84, 40, 0.45);
+}
+
+@utility pixelated {
+  image-rendering: pixelated;
+}
+
+@utility text-glow {
+  text-shadow: 0 0 18px rgba(196, 84, 40, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ember-pulse,
+  .animate-scan-sweep {
+    animation: none !important;
+  }
+}

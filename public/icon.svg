@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="coal" cx="50%" cy="100%" r="80%">
+      <stop offset="0%" stop-color="#e88c30" stop-opacity="0.55"/>
+      <stop offset="40%" stop-color="#c45428" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#070504" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8aa00"/>
+      <stop offset="55%" stop-color="#c45428"/>
+      <stop offset="100%" stop-color="#6e2a1c"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#120c0a"/>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="url(#coal)"/>
+  <rect x="44" y="44" width="936" height="936" rx="190" fill="none" stroke="#3c2e26" stroke-width="16"/>
+  <g fill="none" stroke="url(#ember)" stroke-width="52" stroke-linejoin="miter">
+    <path d="M232 360 V232 H360"/>
+    <path d="M664 232 H792 V360"/>
+    <path d="M792 664 V792 H664"/>
+    <path d="M360 792 H232 V664"/>
+  </g>
+  <path d="M512 300 L700 720 H612 L574 628 H450 L412 720 H324 Z M512 440 L478 548 H546 Z" fill="url(#ember)"/>
+</svg>

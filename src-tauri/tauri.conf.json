@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ArtDirector",
+  "version": "0.1.0",
+  "identifier": "dev.hawkk.artdirector",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "ArtDirector",
+        "width": 1480,
+        "height": 920,
+        "minWidth": 960,
+        "minHeight": 600,
+        "theme": "Dark",
+        "backgroundColor": "#070504",
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "img-src": "'self' data: blob: http://ad.localhost ad:",
+        "media-src": "'self' blob: http://ad.localhost ad:",
+        "connect-src": "'self' ipc: http://ipc.localhost http://ad.localhost ad: data: blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "worker-src": "'self' blob:"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "GraphicsAndDesign",
+    "shortDescription": "A forge-dark gallery for your game art",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
