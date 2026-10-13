@@ -27,7 +27,7 @@ export function BlendViewer({ asset }: { asset: AssetSummary }) {
   }, [state, asset.id]);
 
   if (state === "ready") {
-    return <ModelViewer url={derivedUrl(asset, "glb")} format="glb" />;
+    return <ModelViewer assetId={asset.id} url={derivedUrl(asset, "glb")} format="glb" />;
   }
 
   return (

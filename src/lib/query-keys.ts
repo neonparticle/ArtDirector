@@ -15,6 +15,7 @@ export const qk = {
   settings: ["settings"] as const,
   blender: ["blender"] as const,
   cache: ["cache"] as const,
+  appVersion: ["appVersion"] as const,
   aseprite: (id: number, mtime: number) => ["aseprite", id, mtime] as const,
   sheet: (id: number) => ["sheet", id] as const,
   blend: (id: number) => ["blend", id] as const,

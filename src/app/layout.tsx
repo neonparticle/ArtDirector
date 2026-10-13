@@ -8,10 +8,13 @@ import { InfoPanel } from "@/features/viewer/InfoPanel";
 import { ThumbCapturer } from "@/features/viewer/model/ThumbCapturer";
 import { ViewerRouter } from "@/features/viewer/ViewerRouter";
 import { useUi } from "@/stores/ui";
+import { useAutoUpdateCheck } from "@/stores/update";
+import { NoticeToast } from "./NoticeToast";
 
 export function AppLayout() {
   const infoOpen = useUi((s) => s.infoOpen);
   const viewerOpen = useUi((s) => s.viewerOpen);
+  useAutoUpdateCheck();
 
   return (
     <div className="relative flex h-full overflow-hidden bg-void">
@@ -32,6 +35,7 @@ export function AppLayout() {
 
       <SettingsDialog />
       <ThumbCapturer />
+      <NoticeToast />
 
       <div className="forge-scanlines pointer-events-none fixed inset-0 z-[70]" />
       <div className="forge-vignette pointer-events-none fixed inset-0 z-[70]" />

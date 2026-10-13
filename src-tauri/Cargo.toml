@@ -39,6 +39,9 @@ notify-debouncer-full = "0.5"
 asefile = "0.3.8"
 base64 = "0.22"
 tauri-plugin-single-instance = "2.4.5"
+arboard = { version = "3.6.1", default-features = false, features = ["image-data"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [profile.dev.package."*"]
 opt-level = 2

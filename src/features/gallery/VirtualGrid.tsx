@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useHotkeys } from "@/app/hotkeys";
 import { Button } from "@/components/ui/button";
 import { useProjects } from "@/features/projects/useProjects";
+import { copyImage } from "@/features/viewer/copyImage";
 import { useUi } from "@/stores/ui";
 import { AssetTile } from "./AssetTile";
 import { useAssets, useToggleFavorite } from "./useAssets";
@@ -83,6 +84,10 @@ export function VirtualGrid() {
         if (a) favorite.mutate({ id: a.id, favorite: !a.favorite });
       },
       i: useUi.getState().toggleInfo,
+      "mod+c": () => {
+        const a = assets[selectedIndex];
+        if (a && a.kind !== "source") copyImage(a);
+      },
     },
     !viewerOpen,
   );

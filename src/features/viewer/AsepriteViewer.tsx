@@ -6,6 +6,7 @@ import { derivedUrl } from "@/lib/asset-url";
 import { type AssetSummary, commands } from "@/lib/bindings";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { useFrameSource } from "./copyImage";
 import { PlaybackBar } from "./PlaybackBar";
 import { PixelGrid, Stage, ZoomReadout } from "./Stage";
 import { type Direction, useFramePlayer } from "./useFramePlayer";
@@ -24,9 +25,14 @@ export function AsepriteViewer({ asset }: { asset: AssetSummary }) {
   useEffect(() => {
     setStrip(null);
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => setStrip(img);
     img.src = derivedUrl(asset, "strip");
   }, [asset]);
+
+  useFrameSource(asset.id, () =>
+    strip ? (canvasRef.current?.toDataURL("image/png") ?? null) : null,
+  );
 
   const data = info.data;
   const frames = data?.durations.length ?? 1;

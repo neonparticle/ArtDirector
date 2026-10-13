@@ -1,6 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
-import { CheckCircle2, FolderSearch, HardDrive, RotateCcw, Trash2, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FolderSearch,
+  HardDrive,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +31,7 @@ import { commands, type Settings } from "@/lib/bindings";
 import { formatBytes } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { useUi } from "@/stores/ui";
+import { checkForUpdate, installUpdate, useUpdate } from "@/stores/update";
 
 const DEFAULT_EXCLUDES = [
   "node_modules",
@@ -217,6 +229,10 @@ function SettingsForm({ initial, onDone }: { initial: Settings; onDone: () => vo
         </div>
       </Section>
 
+      <Section title="Updates">
+        <UpdatesRow />
+      </Section>
+
       {save.error && <p className="text-xs text-arc">{String(save.error)}</p>}
 
       <DialogFooter>
@@ -227,6 +243,47 @@ function SettingsForm({ initial, onDone }: { initial: Settings; onDone: () => vo
           Save settings
         </Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+function UpdatesRow() {
+  const version = useQuery({ queryKey: qk.appVersion, queryFn: getVersion, staleTime: Infinity });
+  const status = useUpdate((s) => s.status);
+  const next = useUpdate((s) => s.update?.version);
+  const progress = useUpdate((s) => s.progress);
+
+  const detail = {
+    idle: "Checks automatically at launch and every few hours.",
+    checking: "Checking for updates…",
+    current: "You're on the latest version.",
+    available: `Version ${next} is available.`,
+    installing: `Installing ${next}${progress != null ? ` · ${Math.round(progress * 100)}%` : "…"}`,
+  }[status];
+
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-iron-700 bg-void/40 px-3 py-2.5">
+      <Sparkles className="size-4 shrink-0 text-ember" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] text-bone">
+          ArtDirector {version.data && `v${version.data}`}
+        </div>
+        <div className="truncate text-[11px] text-dust">{detail}</div>
+      </div>
+      {status === "available" || status === "installing" ? (
+        <Button size="sm" onClick={installUpdate} disabled={status === "installing"}>
+          <Download /> Install &amp; restart
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => checkForUpdate()}
+          disabled={status === "checking"}
+        >
+          <RefreshCw className={status === "checking" ? "animate-spin" : undefined} /> Check
+        </Button>
+      )}
     </div>
   );
 }

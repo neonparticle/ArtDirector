@@ -43,6 +43,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             assets::remove_tag,
             assets::reveal_asset,
             assets::open_asset,
+            assets::copy_image,
             viewer::aseprite_info,
             viewer::sheet_info,
             viewer::save_sheet,
@@ -98,6 +99,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(builder.invoke_handler())
         .register_asynchronous_uri_scheme_protocol(protocol::SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();

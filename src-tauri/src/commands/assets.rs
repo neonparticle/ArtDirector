@@ -7,11 +7,13 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::error::{Error, Result};
-use crate::formats::blend;
+use crate::formats::{aseprite, blend, image as img};
 use crate::index::queries::{
     self, AssetDetail, AssetQuery, AssetSummary, FolderCount, KindCount, TagCount,
 };
+use crate::scanner::AssetKind;
 use crate::state::AppState;
+use crate::thumbs::pipeline::{self, Thumb};
 
 #[derive(Debug, Clone, Copy, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -123,6 +125,53 @@ pub async fn open_asset(
     };
     Command::new(program).arg(path).spawn()?;
     Ok(())
+}
+
+/// Puts an asset's pixels on the system clipboard. `data_url` carries what an open
+/// viewer is showing (current frame, live 3D view); without it the whole image, the
+/// first Aseprite frame, or a model's rendered thumbnail is copied.
+#[tauri::command]
+#[specta::specta]
+pub async fn copy_image(
+    state: State<'_, AppState>,
+    id: i64,
+    data_url: Option<String>,
+) -> Result<()> {
+    let (row, thumb_ready) = {
+        let conn = state.db.get()?;
+        let ready = queries::asset_detail(&conn, id)?.asset.thumb_ready;
+        (queries::get_asset_row(&conn, id)?, ready)
+    };
+    let cache_dir = state.cache_dir.clone();
+    let size = state.settings().thumb_size();
+    tauri::async_runtime::spawn_blocking(move || {
+        let image = match data_url {
+            Some(url) => img::decode_data_url(&url)?,
+            None => match row.kind {
+                AssetKind::Image | AssetKind::Sheet => img::load(&row.path())?.into_rgba8(),
+                AssetKind::Aseprite => aseprite::first_frame(&row.path())?,
+                AssetKind::Model | AssetKind::Blend => {
+                    match pipeline::thumb_for(&cache_dir, &row, size)? {
+                        Thumb::File(p) if thumb_ready => img::load(&p)?.into_rgba8(),
+                        _ => return Err(Error::msg("no preview rendered yet")),
+                    }
+                }
+                AssetKind::Source => return Err(Error::msg("not an image")),
+            },
+        };
+        let (width, height) = image.dimensions();
+        arboard::Clipboard::new()
+            .and_then(|mut c| {
+                c.set_image(arboard::ImageData {
+                    width: width as usize,
+                    height: height as usize,
+                    bytes: image.into_raw().into(),
+                })
+            })
+            .map_err(|e| Error::msg(format!("clipboard: {e}")))
+    })
+    .await
+    .map_err(|e| Error::msg(e.to_string()))?
 }
 
 fn find_aseprite() -> Option<PathBuf> {

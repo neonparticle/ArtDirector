@@ -1,14 +1,25 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Boxes, Copy, ExternalLink, Film, FolderOpen, ImagePlus } from "lucide-react";
+import {
+  Boxes,
+  ClipboardCopy,
+  Copy,
+  ExternalLink,
+  Film,
+  FolderOpen,
+  ImagePlus,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { type AssetSummary, commands, type OpenWith } from "@/lib/bindings";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { notify } from "@/stores/notice";
+import { copyImage } from "./copyImage";
 
 export type AssetAction = {
   id: string;
   label: string;
   icon: ReactNode;
+  shortcut?: string;
   run: () => void;
 };
 
@@ -17,7 +28,7 @@ export function useAssetActions(asset: AssetSummary | undefined, absPath?: strin
   const qc = useQueryClient();
   if (!asset) return [];
   const open = (with_: OpenWith) => () => {
-    commands.openAsset(asset.id, with_).catch((e) => alert(String(e)));
+    commands.openAsset(asset.id, with_).catch((e) => notify(String(e), "error"));
   };
   const actions: AssetAction[] = [
     {
@@ -44,6 +55,15 @@ export function useAssetActions(asset: AssetSummary | undefined, absPath?: strin
       run: open("blender"),
     });
   }
+  if (asset.kind !== "source") {
+    actions.push({
+      id: "copy-image",
+      label: "Copy image",
+      icon: <ClipboardCopy />,
+      shortcut: "Ctrl+C",
+      run: () => copyImage(asset),
+    });
+  }
   if (absPath) {
     actions.push({
       id: "copy",
@@ -66,6 +86,10 @@ export function useAssetActions(asset: AssetSummary | undefined, absPath?: strin
   return actions;
 }
 
+export function Shortcut({ keys }: { keys: string }) {
+  return <span className="ml-auto pl-4 font-mono text-[10px] text-dust">{keys}</span>;
+}
+
 export function ActionList({ actions, className }: { actions: AssetAction[]; className?: string }) {
   return (
     <div className={cn("grid gap-0.5", className)}>
@@ -78,6 +102,7 @@ export function ActionList({ actions, className }: { actions: AssetAction[]; cla
         >
           {a.icon}
           {a.label}
+          {a.shortcut && <Shortcut keys={a.shortcut} />}
         </button>
       ))}
     </div>

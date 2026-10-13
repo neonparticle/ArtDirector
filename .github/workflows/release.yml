@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run check
+
+      - name: Test
+        run: npm test
+
+      # Installed clients only update to a strictly higher semver, so every run gets its own patch number.
+      - name: Stamp version
+        id: version
+        shell: bash
+        run: |
+          version=$(node -e '
+            const fs = require("fs");
+            const path = "src-tauri/tauri.conf.json";
+            const conf = JSON.parse(fs.readFileSync(path, "utf8"));
+            const [major, minor] = conf.version.split(".");
+            conf.version = `${major}.${minor}.${process.env.GITHUB_RUN_NUMBER}`;
+            conf.bundle.createUpdaterArtifacts = true;
+            fs.writeFileSync(path, JSON.stringify(conf, null, 2));
+            process.stdout.write(conf.version);
+          ')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v${{ steps.version.outputs.version }}
+          releaseName: ArtDirector v${{ steps.version.outputs.version }}
+          releaseBody: ${{ github.event.head_commit.message || 'Manual release' }}
+          releaseDraft: false
+          prerelease: false

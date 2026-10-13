@@ -1,4 +1,5 @@
 import { Flame } from "lucide-react";
+import { UpdateIndicator } from "@/features/update/UpdateIndicator";
 import { formatBytes, formatCount, formatDims } from "@/lib/format";
 import { isScanning, useScans } from "@/stores/scan";
 import { useUi } from "@/stores/ui";
@@ -33,6 +34,7 @@ export function StatusBar() {
           </>
         )}
       </span>
+      <UpdateIndicator />
     </footer>
   );
 }

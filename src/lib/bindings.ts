@@ -25,6 +25,12 @@ export const commands = {
 	removeTag: (id: number, tag: string) => __TAURI_INVOKE<null>("remove_tag", { id, tag }),
 	revealAsset: (id: number) => __TAURI_INVOKE<null>("reveal_asset", { id }),
 	openAsset: (id: number, appKind: OpenWith) => __TAURI_INVOKE<null>("open_asset", { id, appKind }),
+	/**
+	 *  Puts an asset's pixels on the system clipboard. `data_url` carries what an open
+	 *  viewer is showing (current frame, live 3D view); without it the whole image, the
+	 *  first Aseprite frame, or a model's rendered thumbnail is copied.
+	 */
+	copyImage: (id: number, dataUrl: string | null) => __TAURI_INVOKE<null>("copy_image", { id, dataUrl }),
 	asepriteInfo: (id: number) => __TAURI_INVOKE<AsepriteInfo>("aseprite_info", { id }),
 	sheetInfo: (id: number) => __TAURI_INVOKE<SheetInfo>("sheet_info", { id }),
 	saveSheet: (id: number, meta: SheetMeta) => __TAURI_INVOKE<null>("save_sheet", { id, meta }),

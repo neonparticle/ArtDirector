@@ -27,8 +27,9 @@ import { KIND_META } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type StageBackground, useUi } from "@/stores/ui";
 import { AsepriteViewer } from "./AsepriteViewer";
-import { useAssetActions } from "./AssetActions";
+import { Shortcut, useAssetActions } from "./AssetActions";
 import { BlendViewer } from "./BlendViewer";
+import { copyImage } from "./copyImage";
 import { ImageViewer } from "./ImageViewer";
 import { InfoPanel } from "./InfoPanel";
 import { ModelViewer } from "./ModelViewer";
@@ -60,6 +61,7 @@ export function ViewerRouter() {
     ArrowRight: () => step(1),
     f: () => asset && favorite.mutate({ id: asset.id, favorite: !asset.favorite }),
     i: toggleInfo,
+    "mod+c": () => asset && asset.kind !== "source" && copyImage(asset),
   });
 
   return (
@@ -106,6 +108,7 @@ function KindViewer({ asset }: { asset: AssetSummary }) {
       const stem = asset.name.replace(/\.[^.]+$/, "");
       return (
         <ModelViewer
+          assetId={asset.id}
           url={relUrl(asset)}
           format={asset.ext as ModelFormat}
           mtlUrl={asset.ext === "obj" ? siblingUrl(asset, `${stem}.mtl`) : undefined}
@@ -251,6 +254,7 @@ function Toolbar({
             <DropdownMenuItem key={a.id} onSelect={a.run}>
               {a.icon}
               {a.label}
+              {a.shortcut && <Shortcut keys={a.shortcut} />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

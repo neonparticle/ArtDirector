@@ -6,7 +6,7 @@ import {
   OrbitControls,
   useBounds,
 } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Grid3x3, Loader2, Rotate3d, RotateCcw, Shapes, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useFrameSource } from "./copyImage";
 import {
   disposeObject,
   type LoadedModel,
@@ -27,13 +28,16 @@ import {
 } from "./model/loadModel";
 import { Stage } from "./Stage";
 
+const GROUND_GRID = "ground-grid";
+
 type Props = {
+  assetId: number;
   url: string;
   format: ModelFormat;
   mtlUrl?: string;
 };
 
-export function ModelViewer({ url, format, mtlUrl }: Props) {
+export function ModelViewer({ assetId, url, format, mtlUrl }: Props) {
   const [model, setModel] = useState<LoadedModel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wireframe, setWireframe] = useState(false);
@@ -132,6 +136,7 @@ export function ModelViewer({ url, format, mtlUrl }: Props) {
         {model && <Animator root={model.scene} clips={model.animations} active={clip} />}
         {grid && (
           <Grid
+            name={GROUND_GRID}
             infiniteGrid
             cellSize={0.25}
             sectionSize={1}
@@ -142,6 +147,7 @@ export function ModelViewer({ url, format, mtlUrl }: Props) {
           />
         )}
         <OrbitControls makeDefault enableDamping autoRotate={autoRotate} autoRotateSpeed={1.2} />
+        {model && <ViewCapture assetId={assetId} />}
       </Canvas>
 
       {model && (
@@ -219,6 +225,23 @@ function normalize(root: THREE.Object3D) {
   const scale = 2 / Math.max(size.x, size.y, size.z, 1e-6);
   root.scale.multiplyScalar(scale);
   root.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+}
+
+/**
+ * Copies the live view without the ground grid. Renders first because the drawing
+ * buffer is not preserved between frames.
+ */
+function ViewCapture({ assetId }: { assetId: number }) {
+  const { gl, scene, camera } = useThree();
+  useFrameSource(assetId, () => {
+    const grid = scene.getObjectByName(GROUND_GRID);
+    if (grid) grid.visible = false;
+    gl.render(scene, camera);
+    const url = gl.domElement.toDataURL("image/png");
+    if (grid) grid.visible = true;
+    return url;
+  });
+  return null;
 }
 
 function BoundsReset({ trigger }: { trigger: number }) {

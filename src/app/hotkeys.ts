@@ -13,8 +13,10 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 /**
- * Window-level key bindings keyed by `KeyboardEvent.key` (e.g. "ArrowLeft", "f", " ").
- * Ignored while typing in a field. Handlers can stay inline; the latest ones are always used.
+ * Window-level key bindings keyed by `KeyboardEvent.key` (e.g. "ArrowLeft", "f", " "),
+ * or "mod+<key>" for Ctrl/Cmd combos. Ignored while typing in a field, and mod combos
+ * yield to the browser while text is selected so native copy keeps working.
+ * Handlers can stay inline; the latest ones are always used.
  */
 export function useHotkeys(map: Record<string, Handler>, enabled = true) {
   const ref = useRef(map);
@@ -23,8 +25,12 @@ export function useHotkeys(map: Record<string, Handler>, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const handler = ref.current[e.key] ?? ref.current[e.key.toLowerCase()];
+      if (isTyping(e.target) || e.altKey) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && window.getSelection()?.toString()) return;
+      const handler = mod
+        ? ref.current[`mod+${e.key.toLowerCase()}`]
+        : (ref.current[e.key] ?? ref.current[e.key.toLowerCase()]);
       if (handler) {
         e.preventDefault();
         handler(e);

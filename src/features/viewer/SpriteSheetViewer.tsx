@@ -10,6 +10,7 @@ import { fileUrl } from "@/lib/asset-url";
 import { type AssetSummary, commands, type SheetFrame, type SheetMeta } from "@/lib/bindings";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { useFrameSource } from "./copyImage";
 import { PlaybackBar } from "./PlaybackBar";
 import { Stage, ZoomReadout } from "./Stage";
 import { type Direction, useFramePlayer } from "./useFramePlayer";
@@ -124,6 +125,10 @@ export function SpriteSheetViewer({ asset }: { asset: AssetSummary }) {
     speed,
   });
   const current = allFrames[player.frame];
+  const previewRef = useRef<HTMLCanvasElement>(null);
+  useFrameSource(asset.id, () =>
+    current ? (previewRef.current?.toDataURL("image/png") ?? null) : null,
+  );
 
   const pz = usePanZoom(w, h, true);
   useHotkeys({
@@ -218,7 +223,7 @@ export function SpriteSheetViewer({ asset }: { asset: AssetSummary }) {
       <aside className="flex w-80 shrink-0 flex-col gap-5 overflow-y-auto border-l border-iron-700 bg-iron-950/90 p-4">
         <div>
           <Label>Preview</Label>
-          <FramePreview src={fileUrl(asset)} frame={current} />
+          <FramePreview canvasRef={previewRef} src={fileUrl(asset)} frame={current} />
           <PlaybackBar
             className="mt-2 flex-wrap justify-center"
             frame={player.frame}
@@ -363,11 +368,19 @@ export function SpriteSheetViewer({ asset }: { asset: AssetSummary }) {
   );
 }
 
-function FramePreview({ src, frame }: { src: string; frame: SheetFrame | undefined }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
+function FramePreview({
+  canvasRef: canvas,
+  src,
+  frame,
+}: {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  src: string;
+  frame: SheetFrame | undefined;
+}) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
     const i = new Image();
+    i.crossOrigin = "anonymous";
     i.onload = () => setImg(i);
     i.src = src;
   }, [src]);
@@ -390,7 +403,7 @@ function FramePreview({ src, frame }: { src: string; frame: SheetFrame | undefin
       frame.w,
       frame.h,
     );
-  }, [img, frame]);
+  }, [canvas, img, frame]);
 
   return (
     <div className="bg-checker mt-2 flex h-56 items-center justify-center overflow-hidden rounded-md border border-iron-700">
