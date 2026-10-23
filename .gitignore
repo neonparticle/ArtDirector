@@ -9,3 +9,5 @@ src-tauri/gen/schemas/
 .DS_Store
 Thumbs.db
 *.log
+
+.claude/settings.local.json

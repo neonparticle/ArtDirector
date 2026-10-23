@@ -65,6 +65,27 @@ The installer isn't code-signed, so SmartScreen asks once: **More info → Run a
 - **Blender** for `.blend` previews. Auto-detected from `PATH` and Program Files, or set in Settings.
 - **Aseprite** for "Open in Aseprite".
 
+## MCP server
+
+`mcp/server.ts` exposes your ArtDirector library to AI assistants over the Model Context Protocol. It reads the same index and thumbnail cache as the app, so it works whether or not the app is open. Needs Node 22.18+ (runs the TypeScript directly).
+
+| Tool | What it does |
+| --- | --- |
+| `list_projects` | Indexed projects with ids, roots and asset counts |
+| `search_assets` | Filter by project, kind, folder, path/tag text, tag, favorites, size; sort and page |
+| `get_asset` | Absolute path, dimensions, tags, sheet layout, duplicate ids |
+| `get_thumbnail` / `get_image` | Returns the preview or the original image so the assistant can see it |
+| `list_folders`, `list_tags`, `kind_counts`, `find_duplicates` | Library overviews |
+| `set_favorite`, `add_tag`, `remove_tag` | Organize assets; the app picks changes up on its next query |
+
+It is registered for this workspace in `.vscode/mcp.json` (VS Code) and `.mcp.json` (Claude Code). To use it elsewhere:
+
+```sh
+claude mcp add --scope user art-director -- node <repo>/mcp/server.ts
+```
+
+Set `ARTDIRECTOR_DATA_DIR` / `ARTDIRECTOR_CACHE_DIR` to point at a non-default index.
+
 ## Develop
 
 Needs Node 22+, stable Rust and WebView2.

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "art-director": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "mcp/server.ts"
+      ],
+      "env": {}
+    }
+  }
+}

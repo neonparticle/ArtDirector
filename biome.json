@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["src/**", "vite.config.ts", "!src/lib/bindings.ts", "!src/styles"]
+    "includes": ["src/**", "mcp/**", "vite.config.ts", "!src/lib/bindings.ts", "!src/styles"]
   },
   "formatter": {
     "indentStyle": "space",

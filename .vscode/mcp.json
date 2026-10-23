@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "art-director": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/server.ts"]
+    }
+  }
+}
