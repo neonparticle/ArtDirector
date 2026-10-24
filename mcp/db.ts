@@ -260,14 +260,6 @@ export class ArtDirectorDb {
       where.push("(a.width IS NULL OR max(a.width, a.height) >= ?)");
       args.push(q.minPx);
     }
-    if (q.hideDuplicates) {
-      where.push(
-        `(a.hash IS NULL OR a.id = (
-            SELECT b.id FROM assets b WHERE b.hash = a.hash AND b.hidden = 0
-            ORDER BY length(b.rel_path), b.id LIMIT 1))`,
-      );
-    }
-
     const order = {
       path: "a.rel_path COLLATE NOCASE",
       name: "a.name COLLATE NOCASE",
@@ -279,14 +271,22 @@ export class ArtDirectorDb {
     const limit = Math.min(500, Math.max(1, q.limit ?? 50));
     const offset = Math.max(0, q.offset ?? 0);
     const clause = where.join(" AND ");
+    // Pick each hash's representative among the rows that already match, so a
+    // folder never goes empty because its twin with a shorter path lives elsewhere.
+    const source = q.hideDuplicates
+      ? `(SELECT a.*, row_number() OVER (
+           PARTITION BY a.hash ORDER BY length(a.rel_path), a.id) AS dup_rank
+         FROM assets a WHERE ${clause}) a
+         WHERE a.hash IS NULL OR a.dup_rank = 1`
+      : `assets a WHERE ${clause}`;
 
     const db = this.conn();
     const total = (
-      db.prepare(`SELECT COUNT(*) AS n FROM assets a WHERE ${clause}`).get(...args) as Row
+      db.prepare(`SELECT COUNT(*) AS n FROM ${source}`).get(...args) as Row
     ).n as number;
     const rows = db
       .prepare(
-        `SELECT ${ASSET_COLUMNS} FROM assets a WHERE ${clause}
+        `SELECT ${ASSET_COLUMNS} FROM ${source}
          ORDER BY ${order} ${dir}, a.id ${dir} LIMIT ? OFFSET ?`,
       )
       .all(...args, limit, offset) as Row[];

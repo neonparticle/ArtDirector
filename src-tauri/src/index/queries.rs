@@ -280,27 +280,27 @@ fn like_escape(s: &str) -> String {
 }
 
 pub fn query_assets(conn: &Connection, q: &AssetQuery) -> Result<Vec<AssetSummary>> {
-    let mut sql = format!("SELECT {ASSET_COLUMNS} FROM assets a WHERE a.hidden = 0");
+    let mut filters = String::from("a.hidden = 0");
     let mut args: Vec<Value> = Vec::new();
 
     if let Some(pid) = q.project_id {
-        sql.push_str(" AND a.project_id = ?");
+        filters.push_str(" AND a.project_id = ?");
         args.push(pid.into());
     }
     if !q.kinds.is_empty() {
         let marks = vec!["?"; q.kinds.len()].join(",");
-        sql.push_str(&format!(" AND a.kind IN ({marks})"));
+        filters.push_str(&format!(" AND a.kind IN ({marks})"));
         args.extend(q.kinds.iter().map(|k| Value::from(k.as_str().to_string())));
     }
     if let Some(folder) = q.folder.as_deref().filter(|f| !f.is_empty()) {
-        sql.push_str(" AND (a.dir = ? OR substr(a.dir, 1, length(?) + 1) = ? || '/')");
+        filters.push_str(" AND (a.dir = ? OR substr(a.dir, 1, length(?) + 1) = ? || '/')");
         for _ in 0..3 {
             args.push(folder.to_string().into());
         }
     }
     if let Some(search) = q.search.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         let pat = like_escape(search);
-        sql.push_str(
+        filters.push_str(
             " AND (a.rel_path LIKE ? ESCAPE '\\'
               OR EXISTS (SELECT 1 FROM tags t WHERE t.asset_id = a.id AND t.tag LIKE ? ESCAPE '\\'))",
         );
@@ -308,28 +308,34 @@ pub fn query_assets(conn: &Connection, q: &AssetQuery) -> Result<Vec<AssetSummar
         args.push(pat.into());
     }
     if let Some(tag) = q.tag.as_deref().filter(|t| !t.is_empty()) {
-        sql.push_str(" AND EXISTS (SELECT 1 FROM tags t WHERE t.asset_id = a.id AND t.tag = ?)");
+        filters.push_str(" AND EXISTS (SELECT 1 FROM tags t WHERE t.asset_id = a.id AND t.tag = ?)");
         args.push(tag.to_string().into());
     }
     if q.favorites_only {
-        sql.push_str(" AND EXISTS (SELECT 1 FROM favorites f WHERE f.asset_id = a.id)");
+        filters.push_str(" AND EXISTS (SELECT 1 FROM favorites f WHERE f.asset_id = a.id)");
     }
     if q.hide_artifacts {
-        sql.push_str(
+        filters.push_str(
             " AND a.rel_path NOT LIKE 'artifacts/%' AND a.rel_path NOT LIKE '%/artifacts/%'",
         );
     }
     if let Some(min) = q.min_px.filter(|m| *m > 0) {
-        sql.push_str(" AND (a.width IS NULL OR max(a.width, a.height) >= ?)");
+        filters.push_str(" AND (a.width IS NULL OR max(a.width, a.height) >= ?)");
         args.push(min.into());
     }
-    if q.hide_duplicates {
-        sql.push_str(
-            " AND (a.hash IS NULL OR a.id = (
-                SELECT b.id FROM assets b WHERE b.hash = a.hash AND b.hidden = 0
-                ORDER BY length(b.rel_path), b.id LIMIT 1))",
-        );
-    }
+    // Pick each hash's representative among the rows that already match, so a
+    // folder never goes empty because its twin with a shorter path lives elsewhere.
+    let mut sql = if q.hide_duplicates {
+        format!(
+            "SELECT {ASSET_COLUMNS} FROM (
+               SELECT a.*, row_number() OVER (
+                 PARTITION BY a.hash ORDER BY length(a.rel_path), a.id) AS dup_rank
+               FROM assets a WHERE {filters}) a
+             WHERE a.hash IS NULL OR a.dup_rank = 1"
+        )
+    } else {
+        format!("SELECT {ASSET_COLUMNS} FROM assets a WHERE {filters}")
+    };
 
     let order = match q.sort {
         SortKey::Path => "a.rel_path COLLATE NOCASE",
