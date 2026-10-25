@@ -281,9 +281,8 @@ export class ArtDirectorDb {
       : `assets a WHERE ${clause}`;
 
     const db = this.conn();
-    const total = (
-      db.prepare(`SELECT COUNT(*) AS n FROM ${source}`).get(...args) as Row
-    ).n as number;
+    const total = (db.prepare(`SELECT COUNT(*) AS n FROM ${source}`).get(...args) as Row)
+      .n as number;
     const rows = db
       .prepare(
         `SELECT ${ASSET_COLUMNS} FROM ${source}
