@@ -4,6 +4,7 @@ pub mod walk;
 pub use classify::{is_supported, AssetKind};
 
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant, UNIX_EPOCH};
@@ -134,10 +135,23 @@ fn file_meta(path: &Path) -> Option<(i64, i64)> {
     Some((meta.len() as i64, mtime))
 }
 
+/// Reads through a heap buffer: `update_reader` keeps 64 KiB on the stack, and once LTO
+/// inlines this into rayon's recursive splitter every split level reserves that frame,
+/// overflowing the 2 MiB worker stacks on projects with a few thousand files.
 fn hash_file(path: &Path) -> Option<String> {
-    let file = std::fs::File::open(path).ok()?;
+    let mut file = std::fs::File::open(path).ok()?;
     let mut hasher = blake3::Hasher::new();
-    hasher.update_reader(file).ok()?;
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        match file.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                hasher.update(&buf[..n]);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(_) => return None,
+        }
+    }
     Some(hasher.finalize().to_hex()[..32].to_string())
 }
 
