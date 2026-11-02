@@ -2,7 +2,8 @@
 //!   /thumb/<id>            cached thumbnail (generated on demand)
 //!   /file/<id>             original file bytes
 //!   /rel/<id>/<path...>    a file relative to the asset's folder (glTF buffers, textures)
-//!   /derived/<id>/strip    Aseprite frame strip (PNG)
+//!   /derived/<id>/strip    Aseprite or animation frame strip (PNG)
+//!   /derived/<id>/reel     animation frame strip at thumbnail size (WebP), for grid tiles
 //!   /derived/<id>/glb      `.blend` exported to GLB
 
 use std::path::{Component, Path, PathBuf};
@@ -11,12 +12,16 @@ use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::error::{Error, Result};
-use crate::formats::{self, aseprite, blend};
+use crate::formats::{self, aseprite, blend, sequence};
 use crate::index::{abs_path, queries};
+use crate::scanner::AssetKind;
 use crate::state::AppState;
 use crate::thumbs::{cache, pipeline};
 
 pub const SCHEME: &str = "ad";
+
+/// Longest frame side in an animation's full strip; keeps big sequences decodable.
+const STRIP_MAX_FRAME: u32 = 1024;
 
 type Resp = Response<Vec<u8>>;
 
@@ -88,10 +93,25 @@ fn route<R: Runtime>(app: &AppHandle<R>, req: &Request<Vec<u8>>) -> Result<Resp>
                 let key = cache::key(&row, "strip");
                 let out = cache::derived_path(&state.cache_dir, &key, "png");
                 if !out.exists() {
-                    let strip = aseprite::render_strip(&row.path())?;
+                    let strip = match row.kind {
+                        AssetKind::Anim => {
+                            sequence::render_strip(&row.path(), &row.ext, STRIP_MAX_FRAME)?
+                        }
+                        _ => aseprite::render_strip(&row.path())?,
+                    };
                     cache::write_atomic(&out, &pipeline::encode_png(&strip)?)?;
                 }
                 serve(&out, "image/png")
+            }
+            "reel" if row.kind == AssetKind::Anim => {
+                let size = state.settings().thumb_size();
+                let key = cache::key(&row, &format!("reel{size}"));
+                let out = cache::derived_path(&state.cache_dir, &key, "webp");
+                if !out.exists() {
+                    let reel = sequence::render_strip(&row.path(), &row.ext, size)?;
+                    cache::write_atomic(&out, &pipeline::encode_webp(&reel)?)?;
+                }
+                serve(&out, "image/webp")
             }
             "glb" => {
                 let out = blend::glb_path(&state.cache_dir, &row);

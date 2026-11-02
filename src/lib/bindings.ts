@@ -17,8 +17,8 @@ export const commands = {
 	scanningProjects: () => __TAURI_INVOKE<number[]>("scanning_projects"),
 	queryAssets: (query: AssetQuery) => __TAURI_INVOKE<AssetSummary[]>("query_assets", { query }),
 	getAsset: (id: number) => __TAURI_INVOKE<AssetDetail>("get_asset", { id }),
-	listFolders: (projectId: number) => __TAURI_INVOKE<FolderCount[]>("list_folders", { projectId }),
-	kindCounts: (projectId: number | null) => __TAURI_INVOKE<KindCount[]>("kind_counts", { projectId }),
+	listFolders: (projectId: number, groupFrames: boolean) => __TAURI_INVOKE<FolderCount[]>("list_folders", { projectId, groupFrames }),
+	kindCounts: (projectId: number | null, groupFrames: boolean) => __TAURI_INVOKE<KindCount[]>("kind_counts", { projectId, groupFrames }),
 	listTags: (projectId: number | null) => __TAURI_INVOKE<TagCount[]>("list_tags", { projectId }),
 	setFavorite: (id: number, favorite: boolean) => __TAURI_INVOKE<null>("set_favorite", { id, favorite }),
 	addTag: (id: number, tag: string) => __TAURI_INVOKE<null>("add_tag", { id, tag }),
@@ -28,13 +28,14 @@ export const commands = {
 	/**
 	 *  Puts an asset's pixels on the system clipboard. `data_url` carries what an open
 	 *  viewer is showing (current frame, live 3D view); without it the whole image, the
-	 *  first Aseprite frame, or a model's rendered thumbnail is copied.
+	 *  first Aseprite or animation frame, or a model's rendered thumbnail is copied.
 	 */
 	copyImage: (id: number, dataUrl: string | null) => __TAURI_INVOKE<null>("copy_image", { id, dataUrl }),
 	asepriteInfo: (id: number) => __TAURI_INVOKE<AsepriteInfo>("aseprite_info", { id }),
 	sheetInfo: (id: number) => __TAURI_INVOKE<SheetInfo>("sheet_info", { id }),
 	saveSheet: (id: number, meta: SheetMeta) => __TAURI_INVOKE<null>("save_sheet", { id, meta }),
 	clearSheet: (id: number) => __TAURI_INVOKE<null>("clear_sheet", { id }),
+	setAnimFps: (id: number, fps: number | null) => __TAURI_INVOKE<null>("set_anim_fps", { id, fps }),
 	saveModelThumb: (id: number, dataUrl: string) => __TAURI_INVOKE<null>("save_model_thumb", { id, dataUrl }),
 	blendStatus: (id: number) => __TAURI_INVOKE<BlendStatus>("blend_status", { id }),
 	requestBlendExport: (id: number) => __TAURI_INVOKE<BlendStatus>("request_blend_export", { id }),
@@ -84,7 +85,9 @@ export type AssetDetail = {
 	duplicates: number,
 };
 
-export type AssetKind = "image" | "aseprite" | "sheet" | "model" | "blend" | "source";
+export type AssetKind = "image" | 
+/**  A folder of numbered frames (`0.png`, `1.png`, ...), indexed as one asset. */
+"anim" | "aseprite" | "sheet" | "model" | "blend" | "source";
 
 export type AssetQuery = {
 	projectId?: number | null,
@@ -95,6 +98,8 @@ export type AssetQuery = {
 	favoritesOnly?: boolean,
 	hideDuplicates?: boolean,
 	hideArtifacts?: boolean,
+	/**  Show frames of an animation folder only as the animation itself. */
+	groupFrames?: boolean,
 	minPx?: number | null,
 	sort?: SortKey,
 	desc?: boolean,
@@ -113,6 +118,8 @@ export type AssetSummary = {
 	width: number | null,
 	height: number | null,
 	frameCount: number | null,
+	/**  Playback rate saved for an animation; `None` means the default. */
+	fps: number | null,
 	favorite: boolean,
 	thumbReady: boolean,
 };

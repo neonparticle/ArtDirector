@@ -28,8 +28,16 @@ export function siblingUrl(asset: Pick<AssetSummary, "id">, name: string): strin
   return `${AD_BASE}rel/${asset.id}/${encodeURIComponent(name)}`;
 }
 
-export function derivedUrl(asset: Versioned, kind: "strip" | "glb"): string {
-  return `${AD_BASE}derived/${asset.id}/${kind}?v=${asset.mtime}`;
+/**
+ * A file rendered from the asset. Versioned by size as well as mtime: dropping a frame
+ * from an animation folder changes its size but not necessarily its newest mtime.
+ */
+export function derivedUrl(
+  asset: Versioned & Pick<AssetSummary, "size">,
+  kind: "strip" | "reel" | "glb",
+  epoch = 0,
+): string {
+  return `${AD_BASE}derived/${asset.id}/${kind}?v=${asset.mtime}.${asset.size}.${epoch}`;
 }
 
 export function coverUrl(id: number, mtime: number | null, epoch = 0): string {

@@ -7,7 +7,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::error::{Error, Result};
-use crate::formats::{aseprite, blend, image as img};
+use crate::formats::{aseprite, blend, image as img, sequence};
 use crate::index::queries::{
     self, AssetDetail, AssetQuery, AssetSummary, FolderCount, KindCount, TagCount,
 };
@@ -40,8 +40,12 @@ pub async fn get_asset(state: State<'_, AppState>, id: i64) -> Result<AssetDetai
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_folders(state: State<'_, AppState>, project_id: i64) -> Result<Vec<FolderCount>> {
-    queries::list_folders(&*state.db.get()?, project_id)
+pub async fn list_folders(
+    state: State<'_, AppState>,
+    project_id: i64,
+    group_frames: bool,
+) -> Result<Vec<FolderCount>> {
+    queries::list_folders(&*state.db.get()?, project_id, group_frames)
 }
 
 #[tauri::command]
@@ -49,8 +53,9 @@ pub async fn list_folders(state: State<'_, AppState>, project_id: i64) -> Result
 pub async fn kind_counts(
     state: State<'_, AppState>,
     project_id: Option<i64>,
+    group_frames: bool,
 ) -> Result<Vec<KindCount>> {
-    queries::kind_counts(&*state.db.get()?, project_id)
+    queries::kind_counts(&*state.db.get()?, project_id, group_frames)
 }
 
 #[tauri::command]
@@ -102,7 +107,11 @@ pub async fn open_asset(
     app_kind: OpenWith,
 ) -> Result<()> {
     let row = queries::get_asset_row(&*state.db.get()?, id)?;
-    let path = row.path();
+    let mut path = row.path();
+    // Aseprite offers to load the rest of a numbered sequence when given its first frame.
+    if row.kind == AssetKind::Anim && !matches!(app_kind, OpenWith::Default) {
+        path = sequence::first_frame(&path, &row.ext)?;
+    }
     let settings = state.settings();
     let program = match app_kind {
         OpenWith::Default => {
@@ -129,7 +138,7 @@ pub async fn open_asset(
 
 /// Puts an asset's pixels on the system clipboard. `data_url` carries what an open
 /// viewer is showing (current frame, live 3D view); without it the whole image, the
-/// first Aseprite frame, or a model's rendered thumbnail is copied.
+/// first Aseprite or animation frame, or a model's rendered thumbnail is copied.
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_image(
@@ -150,6 +159,9 @@ pub async fn copy_image(
             None => match row.kind {
                 AssetKind::Image | AssetKind::Sheet => img::load(&row.path())?.into_rgba8(),
                 AssetKind::Aseprite => aseprite::first_frame(&row.path())?,
+                AssetKind::Anim => {
+                    img::load(&sequence::first_frame(&row.path(), &row.ext)?)?.into_rgba8()
+                }
                 AssetKind::Model | AssetKind::Blend => {
                     match pipeline::thumb_for(&cache_dir, &row, size)? {
                         Thumb::File(p) if thumb_ready => img::load(&p)?.into_rgba8(),

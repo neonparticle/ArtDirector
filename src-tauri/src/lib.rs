@@ -48,6 +48,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             viewer::sheet_info,
             viewer::save_sheet,
             viewer::clear_sheet,
+            viewer::set_anim_fps,
             viewer::save_model_thumb,
             viewer::blend_status,
             viewer::request_blend_export,
@@ -141,6 +142,7 @@ pub fn run() {
 
             let db = Db::open(&data_dir.join("index.sqlite"))?;
             thumbs::cache::invalidate_stale_renders(&*db.get()?, &cache_dir)?;
+            scanner::sequences::rebuild_all_if_stale(&mut *db.get()?)?;
 
             app.manage(AppState {
                 db,

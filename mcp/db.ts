@@ -2,7 +2,7 @@
 // so results match what the app shows; the app and this server share one SQLite
 // file in WAL mode, which is safe across processes.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -11,8 +11,16 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 
 const IDENTIFIER = "dev.hawkk.artdirector";
 
-export type AssetKind = "image" | "aseprite" | "sheet" | "model" | "blend" | "source";
-export const ASSET_KINDS: AssetKind[] = ["image", "aseprite", "sheet", "model", "blend", "source"];
+export type AssetKind = "image" | "anim" | "aseprite" | "sheet" | "model" | "blend" | "source";
+export const ASSET_KINDS: AssetKind[] = [
+  "image",
+  "anim",
+  "aseprite",
+  "sheet",
+  "model",
+  "blend",
+  "source",
+];
 export type SortKey = "path" | "name" | "modified" | "size" | "dimensions";
 
 export interface Project {
@@ -70,6 +78,8 @@ export interface AssetQuery {
   tag?: string;
   favoritesOnly?: boolean;
   hideDuplicates?: boolean;
+  /** Show a folder of numbered frames as one `anim` asset; on unless false. */
+  groupFrames?: boolean;
   minPx?: number;
   sort?: SortKey;
   desc?: boolean;
@@ -131,6 +141,25 @@ export function cacheKey(
 export function thumbPath(cacheDir: string, key: string): string {
   return join(cacheDir, "thumbs", key.slice(0, 2), `${key}.webp`);
 }
+
+/** First frame file of an `anim` asset's folder, as `formats::sequence::first_frame` picks it. */
+export function firstFrame(dir: string, ext: string): string {
+  const frames = readdirSync(dir)
+    .map((name) => {
+      const dot = name.lastIndexOf(".");
+      const stem = name.slice(0, dot);
+      const ok = dot > 0 && /^\d+$/.test(stem) && name.slice(dot + 1).toLowerCase() === ext;
+      return { name, index: ok ? Number(stem) : -1 };
+    })
+    .filter((f) => f.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  if (frames.length === 0) throw new Error(`no frames in ${dir}`);
+  return join(dir, frames[0].name);
+}
+
+/** Excludes rows that are frames of an indexed animation folder (`queries::NOT_A_FRAME`). */
+const NOT_A_FRAME = `NOT EXISTS (SELECT 1 FROM assets s
+  WHERE s.project_id = a.project_id AND s.rel_path = a.dir AND s.kind = 'anim')`;
 
 const ASSET_COLUMNS = `
 a.id, a.project_id, a.name, a.rel_path, a.dir, a.ext, a.kind, a.size, a.mtime,
@@ -207,7 +236,8 @@ export class ArtDirectorDb {
     const rows = this.conn()
       .prepare(
         `SELECT p.id, p.name, p.root, p.added_at, p.last_scan_at, p.cover_asset_id, p.excludes,
-                (SELECT COUNT(*) FROM assets WHERE project_id = p.id AND hidden = 0) AS asset_count
+                (SELECT COUNT(*) FROM assets
+                 WHERE project_id = p.id AND hidden = 0 AND kind != 'anim') AS asset_count
          FROM projects p ORDER BY p.name COLLATE NOCASE`,
       )
       .all() as Row[];
@@ -255,6 +285,9 @@ export class ArtDirectorDb {
     }
     if (q.favoritesOnly) {
       where.push("EXISTS (SELECT 1 FROM favorites f WHERE f.asset_id = a.id)");
+    }
+    if (q.groupFrames !== false) {
+      where.push(NOT_A_FRAME);
     }
     if (q.minPx && q.minPx > 0) {
       where.push("(a.width IS NULL OR max(a.width, a.height) >= ?)");
@@ -340,8 +373,9 @@ export class ArtDirectorDb {
   listFolders(projectId: number): { dir: string; count: number }[] {
     return this.conn()
       .prepare(
-        `SELECT dir, COUNT(*) AS count FROM assets WHERE project_id = ? AND hidden = 0
-         GROUP BY dir ORDER BY dir COLLATE NOCASE`,
+        `SELECT a.dir, COUNT(*) AS count FROM assets a
+         WHERE a.project_id = ? AND a.hidden = 0 AND ${NOT_A_FRAME}
+         GROUP BY a.dir ORDER BY a.dir COLLATE NOCASE`,
       )
       .all(projectId) as { dir: string; count: number }[];
   }
@@ -349,8 +383,9 @@ export class ArtDirectorDb {
   kindCounts(projectId?: number): { kind: AssetKind; count: number }[] {
     return this.conn()
       .prepare(
-        `SELECT kind, COUNT(*) AS count FROM assets
-         WHERE hidden = 0 AND (? IS NULL OR project_id = ?) GROUP BY kind ORDER BY count DESC`,
+        `SELECT a.kind, COUNT(*) AS count FROM assets a
+         WHERE a.hidden = 0 AND (? IS NULL OR a.project_id = ?) AND ${NOT_A_FRAME}
+         GROUP BY a.kind ORDER BY count DESC`,
       )
       .all(projectId ?? null, projectId ?? null) as { kind: AssetKind; count: number }[];
   }

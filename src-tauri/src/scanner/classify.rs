@@ -11,6 +11,8 @@ pub const SOURCE_EXTS: &[&str] = &["psd", "afphoto", "kra", "xcf"];
 #[serde(rename_all = "lowercase")]
 pub enum AssetKind {
     Image,
+    /// A folder of numbered frames (`0.png`, `1.png`, ...), indexed as one asset.
+    Anim,
     Aseprite,
     Sheet,
     Model,
@@ -22,6 +24,7 @@ impl AssetKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Image => "image",
+            Self::Anim => "anim",
             Self::Aseprite => "aseprite",
             Self::Sheet => "sheet",
             Self::Model => "model",
@@ -32,6 +35,7 @@ impl AssetKind {
 
     pub fn parse(s: &str) -> Self {
         match s {
+            "anim" => Self::Anim,
             "aseprite" => Self::Aseprite,
             "sheet" => Self::Sheet,
             "model" => Self::Model,
@@ -63,7 +67,7 @@ impl AssetKind {
     /// 3D kinds need a thumbnail captured by the frontend for the current file version.
     pub fn thumb_ready(self, mtime: i64, ext_thumb: Option<i64>) -> bool {
         match self {
-            Self::Image | Self::Sheet | Self::Aseprite => true,
+            Self::Image | Self::Anim | Self::Sheet | Self::Aseprite => true,
             Self::Model | Self::Blend => ext_thumb == Some(mtime),
             Self::Source => false,
         }
@@ -108,6 +112,7 @@ mod tests {
     fn kind_round_trips_through_strings() {
         for kind in [
             AssetKind::Image,
+            AssetKind::Anim,
             AssetKind::Aseprite,
             AssetKind::Sheet,
             AssetKind::Model,
@@ -122,6 +127,7 @@ mod tests {
     fn thumb_ready_requires_capture_for_current_version_of_3d_files() {
         assert!(AssetKind::Image.thumb_ready(5, None));
         assert!(AssetKind::Aseprite.thumb_ready(5, None));
+        assert!(AssetKind::Anim.thumb_ready(5, None));
         assert!(!AssetKind::Model.thumb_ready(5, None));
         assert!(!AssetKind::Blend.thumb_ready(5, Some(4)));
         assert!(AssetKind::Blend.thumb_ready(5, Some(5)));

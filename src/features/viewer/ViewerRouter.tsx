@@ -23,9 +23,10 @@ import { Hint } from "@/components/ui/tooltip";
 import { useAssetDetail, useAssets, useToggleFavorite } from "@/features/gallery/useAssets";
 import { relUrl, siblingUrl } from "@/lib/asset-url";
 import type { AssetSummary } from "@/lib/bindings";
-import { KIND_META } from "@/lib/format";
+import { displayName, KIND_META } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type StageBackground, useUi } from "@/stores/ui";
+import { AnimViewer } from "./AnimViewer";
 import { AsepriteViewer } from "./AsepriteViewer";
 import { Shortcut, useAssetActions } from "./AssetActions";
 import { BlendViewer } from "./BlendViewer";
@@ -100,6 +101,8 @@ function KindViewer({ asset }: { asset: AssetSummary }) {
       ) : (
         <ImageViewer asset={asset} onSlice={() => setSlicing(true)} />
       );
+    case "anim":
+      return <AnimViewer asset={asset} />;
     case "sheet":
       return <SpriteSheetViewer asset={asset} />;
     case "aseprite":
@@ -173,7 +176,9 @@ function Toolbar({
 
       <div className="mx-2 flex min-w-0 flex-1 items-center gap-2">
         {Icon && <Icon className="size-4 shrink-0 text-ember" />}
-        <span className="truncate font-display text-xl text-bone">{asset?.name}</span>
+        <span className="truncate font-display text-xl text-bone">
+          {asset && displayName(asset)}
+        </span>
         <span className="hidden truncate font-mono text-[10.5px] text-dust lg:inline">
           {asset?.dir}
         </span>

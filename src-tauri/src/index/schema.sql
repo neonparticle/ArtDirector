@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS sheet_meta (
   source_json TEXT
 );
 
+CREATE TABLE IF NOT EXISTS anim_meta (
+  asset_id INTEGER PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
+  fps      REAL    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tags (
   asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
   tag      TEXT    NOT NULL,

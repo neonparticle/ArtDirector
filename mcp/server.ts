@@ -12,7 +12,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import type { AssetDetail } from "./db.ts";
-import { ArtDirectorDb, ASSET_KINDS, cacheKey, thumbPath } from "./db.ts";
+import { ArtDirectorDb, ASSET_KINDS, cacheKey, firstFrame, thumbPath } from "./db.ts";
 
 const db = new ArtDirectorDb();
 
@@ -99,18 +99,23 @@ server.registerTool(
     description:
       "Find art assets across indexed projects. `search` matches the relative path and tags " +
       "(case-insensitive substring). Returns summaries with ids; use get_asset for full detail " +
-      "and get_thumbnail / get_image to look at one.",
+      "and get_thumbnail / get_image to look at one. A folder of numbered frames (0.png, 1.png, ...) " +
+      "is one `anim` asset whose relPath is the folder; its frames are left out unless groupFrames is false.",
     inputSchema: {
       projectId,
       kinds: z
         .array(z.enum(ASSET_KINDS))
         .optional()
-        .describe("image, aseprite, sheet, model, blend, source"),
+        .describe("image, anim, aseprite, sheet, model, blend, source"),
       folder: z.string().optional().describe("Project-relative folder; includes subfolders"),
       search: z.string().optional().describe("Substring of the path or a tag"),
       tag: z.string().optional().describe("Exact tag"),
       favoritesOnly: z.boolean().optional(),
       hideDuplicates: z.boolean().optional().describe("Collapse byte-identical files to one"),
+      groupFrames: z
+        .boolean()
+        .optional()
+        .describe("Default true: list animation folders as one asset instead of their frames"),
       minPx: z.number().int().optional().describe("Minimum of max(width, height)"),
       sort: z.enum(["path", "name", "modified", "size", "dimensions"]).optional(),
       desc: z.boolean().optional(),
@@ -155,7 +160,8 @@ server.registerTool(
     title: "Get thumbnail",
     description:
       "A small preview of an asset as an image (WebP, usually 256px). Works for images, " +
-      "sprite sheets and Aseprite files, and for 3D/Blender files the app has already rendered. " +
+      "sprite sheets, Aseprite files and animations (first frame), and for 3D/Blender files the " +
+      "app has already rendered. " +
       "Falls back to the original file when the app has not cached a thumbnail yet.",
     inputSchema: { id: z.number().int() },
     annotations: readOnly,
@@ -174,6 +180,9 @@ server.registerTool(
     if ((a.kind === "image" || a.kind === "sheet") && mime && a.size <= MAX_IMAGE_BYTES) {
       return image(a.absPath, mime, `${cap} (original; no cached thumbnail yet)`);
     }
+    if (a.kind === "anim" && mime) {
+      return image(firstFrame(a.absPath, a.ext), mime, `${cap} (first frame; no cached thumbnail)`);
+    }
     return fail(
       `No thumbnail cached for ${cap}. Open it in ArtDirector once to render one. File: ${a.absPath}`,
     );
@@ -186,7 +195,8 @@ server.registerTool(
     title: "Get image",
     description:
       "The original file of a PNG/JPEG/GIF/WebP asset as an image, at full resolution " +
-      "(files up to 4 MB). For other kinds use get_thumbnail or open the path from get_asset.",
+      "(files up to 4 MB). For an animation this is its first frame. For other kinds use " +
+      "get_thumbnail or open the path from get_asset.",
     inputSchema: { id: z.number().int() },
     annotations: readOnly,
   },
@@ -195,6 +205,9 @@ server.registerTool(
     const mime = IMAGE_MIME[a.ext];
     if (!mime)
       return fail(`${caption(a)} is a .${a.ext} file, not a viewable image. Path: ${a.absPath}`);
+    if (a.kind === "anim") {
+      return image(firstFrame(a.absPath, a.ext), mime, `${caption(a)} (first frame)`);
+    }
     if (a.size > MAX_IMAGE_BYTES) {
       return fail(
         `${caption(a)} is ${(a.size / 1048576).toFixed(1)} MB; use get_thumbnail. Path: ${a.absPath}`,
@@ -230,7 +243,9 @@ server.registerTool(
   "kind_counts",
   {
     title: "Kind counts",
-    description: "How many assets of each kind (image, aseprite, sheet, model, blend, source).",
+    description:
+      "How many assets of each kind (image, anim, aseprite, sheet, model, blend, source). " +
+      "Frames inside animation folders count toward their animation, not as images.",
     inputSchema: { projectId },
     annotations: readOnly,
   },

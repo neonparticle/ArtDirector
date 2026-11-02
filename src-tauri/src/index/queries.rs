@@ -35,6 +35,8 @@ pub struct AssetSummary {
     pub width: Option<i64>,
     pub height: Option<i64>,
     pub frame_count: Option<i64>,
+    /// Playback rate saved for an animation; `None` means the default.
+    pub fps: Option<f64>,
     pub favorite: bool,
     pub thumb_ready: bool,
 }
@@ -112,6 +114,8 @@ pub struct AssetQuery {
     pub favorites_only: bool,
     pub hide_duplicates: bool,
     pub hide_artifacts: bool,
+    /// Show frames of an animation folder only as the animation itself.
+    pub group_frames: bool,
     pub min_px: Option<i64>,
     pub sort: SortKey,
     pub desc: bool,
@@ -161,7 +165,7 @@ impl AssetRow {
 const PROJECT_SELECT: &str = "
 SELECT p.id, p.name, p.root, p.added_at, p.last_scan_at, p.cover_asset_id,
        (SELECT mtime FROM assets WHERE id = p.cover_asset_id),
-       (SELECT COUNT(*) FROM assets WHERE project_id = p.id),
+       (SELECT COUNT(*) FROM assets WHERE project_id = p.id AND kind != 'anim'),
        p.excludes
 FROM projects p";
 
@@ -241,7 +245,12 @@ const ASSET_COLUMNS: &str = "
 a.id, a.project_id, a.name, a.rel_path, a.dir, a.ext, a.kind, a.size, a.mtime,
 a.width, a.height, a.frame_count,
 EXISTS (SELECT 1 FROM favorites f WHERE f.asset_id = a.id),
-a.ext_thumb";
+a.ext_thumb,
+(SELECT fps FROM anim_meta m WHERE m.asset_id = a.id)";
+
+/// Excludes rows that are frames of an indexed animation folder.
+const NOT_A_FRAME: &str = "NOT EXISTS (SELECT 1 FROM assets s
+  WHERE s.project_id = a.project_id AND s.rel_path = a.dir AND s.kind = 'anim')";
 
 fn summary_from_row(r: &Row) -> rusqlite::Result<AssetSummary> {
     let kind = AssetKind::parse(&r.get::<_, String>(6)?);
@@ -262,6 +271,7 @@ fn summary_from_row(r: &Row) -> rusqlite::Result<AssetSummary> {
         width: r.get(9)?,
         height: r.get(10)?,
         frame_count: r.get(11)?,
+        fps: r.get(14)?,
         favorite: r.get(12)?,
     })
 }
@@ -308,7 +318,8 @@ pub fn query_assets(conn: &Connection, q: &AssetQuery) -> Result<Vec<AssetSummar
         args.push(pat.into());
     }
     if let Some(tag) = q.tag.as_deref().filter(|t| !t.is_empty()) {
-        filters.push_str(" AND EXISTS (SELECT 1 FROM tags t WHERE t.asset_id = a.id AND t.tag = ?)");
+        filters
+            .push_str(" AND EXISTS (SELECT 1 FROM tags t WHERE t.asset_id = a.id AND t.tag = ?)");
         args.push(tag.to_string().into());
     }
     if q.favorites_only {
@@ -318,6 +329,10 @@ pub fn query_assets(conn: &Connection, q: &AssetQuery) -> Result<Vec<AssetSummar
         filters.push_str(
             " AND a.rel_path NOT LIKE 'artifacts/%' AND a.rel_path NOT LIKE '%/artifacts/%'",
         );
+    }
+    if q.group_frames {
+        filters.push_str(" AND ");
+        filters.push_str(NOT_A_FRAME);
     }
     if let Some(min) = q.min_px.filter(|m| *m > 0) {
         filters.push_str(" AND (a.width IS NULL OR max(a.width, a.height) >= ?)");
@@ -384,9 +399,9 @@ pub fn asset_detail(conn: &Connection, id: i64) -> Result<AssetDetail> {
             |r| {
                 Ok((
                     summary_from_row(r)?,
-                    r.get::<_, Option<String>>(14)?,
-                    r.get::<_, String>(15)?,
+                    r.get::<_, Option<String>>(15)?,
                     r.get::<_, String>(16)?,
+                    r.get::<_, String>(17)?,
                 ))
             },
         )
@@ -421,11 +436,16 @@ pub fn asset_detail(conn: &Connection, id: i64) -> Result<AssetDetail> {
     })
 }
 
-pub fn list_folders(conn: &Connection, project_id: i64) -> Result<Vec<FolderCount>> {
-    let mut stmt = conn.prepare(
-        "SELECT dir, COUNT(*) FROM assets WHERE project_id = ?1 AND hidden = 0
-         GROUP BY dir ORDER BY dir COLLATE NOCASE",
-    )?;
+pub fn list_folders(
+    conn: &Connection,
+    project_id: i64,
+    group_frames: bool,
+) -> Result<Vec<FolderCount>> {
+    let grouped = if group_frames { NOT_A_FRAME } else { "1" };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT a.dir, COUNT(*) FROM assets a WHERE a.project_id = ?1 AND a.hidden = 0 AND {grouped}
+         GROUP BY a.dir ORDER BY a.dir COLLATE NOCASE"
+    ))?;
     let rows = stmt.query_map([project_id], |r| {
         Ok(FolderCount {
             dir: r.get(0)?,
@@ -435,12 +455,17 @@ pub fn list_folders(conn: &Connection, project_id: i64) -> Result<Vec<FolderCoun
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
-pub fn kind_counts(conn: &Connection, project_id: Option<i64>) -> Result<Vec<KindCount>> {
-    let mut stmt = conn.prepare(
-        "SELECT kind, COUNT(*) FROM assets
-         WHERE hidden = 0 AND (?1 IS NULL OR project_id = ?1)
-         GROUP BY kind",
-    )?;
+pub fn kind_counts(
+    conn: &Connection,
+    project_id: Option<i64>,
+    group_frames: bool,
+) -> Result<Vec<KindCount>> {
+    let grouped = if group_frames { NOT_A_FRAME } else { "1" };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT a.kind, COUNT(*) FROM assets a
+         WHERE a.hidden = 0 AND (?1 IS NULL OR a.project_id = ?1) AND {grouped}
+         GROUP BY a.kind"
+    ))?;
     let rows = stmt.query_map([project_id], |r| {
         Ok(KindCount {
             kind: AssetKind::parse(&r.get::<_, String>(0)?),
@@ -497,6 +522,15 @@ pub fn set_ext_thumb(conn: &Connection, id: i64, mtime: i64) -> Result<()> {
     conn.execute(
         "UPDATE assets SET ext_thumb = ?2 WHERE id = ?1",
         params![id, mtime],
+    )?;
+    Ok(())
+}
+
+pub fn set_anim_fps(conn: &Connection, id: i64, fps: f64) -> Result<()> {
+    conn.execute(
+        "INSERT INTO anim_meta (asset_id, fps) VALUES (?1, ?2)
+         ON CONFLICT(asset_id) DO UPDATE SET fps = excluded.fps",
+        params![id, fps],
     )?;
     Ok(())
 }

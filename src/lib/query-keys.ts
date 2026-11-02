@@ -6,9 +6,11 @@ export const qk = {
   assetsAll: ["assets"] as const,
   asset: (id: number) => ["asset", id] as const,
   assetAll: ["asset"] as const,
-  folders: (projectId: number) => ["folders", projectId] as const,
+  folders: (projectId: number, groupFrames: boolean) =>
+    ["folders", projectId, groupFrames] as const,
   foldersAll: ["folders"] as const,
-  kinds: (projectId: number | null) => ["kinds", projectId] as const,
+  kinds: (projectId: number | null, groupFrames: boolean) =>
+    ["kinds", projectId, groupFrames] as const,
   kindsAll: ["kinds"] as const,
   tags: (projectId: number | null) => ["tags", projectId] as const,
   tagsAll: ["tags"] as const,

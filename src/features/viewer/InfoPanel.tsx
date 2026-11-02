@@ -5,10 +5,18 @@ import { Input } from "@/components/ui/input";
 import { useAssetDetail, useTagMutations, useToggleFavorite } from "@/features/gallery/useAssets";
 import { thumbUrl } from "@/lib/asset-url";
 import type { AssetDetail } from "@/lib/bindings";
-import { formatBytes, formatDate, formatDims, isPixelArt, KIND_META } from "@/lib/format";
+import {
+  displayName,
+  formatBytes,
+  formatDate,
+  formatDims,
+  isPixelArt,
+  KIND_META,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useUi } from "@/stores/ui";
 import { ActionList, useAssetActions } from "./AssetActions";
+import { DEFAULT_FPS, Reel } from "./Reel";
 
 export function InfoPanel({ embedded = false }: { embedded?: boolean }) {
   const selectedId = useUi((s) => s.selectedId);
@@ -49,6 +57,7 @@ function Details({ detail, embedded }: { detail: AssetDetail; embedded: boolean 
     ["Format", asset.ext.toUpperCase()],
     ["Dimensions", dims],
     ["Frames", asset.frameCount ? String(asset.frameCount) : null],
+    ["Frame rate", asset.kind === "anim" ? `${+(asset.fps ?? DEFAULT_FPS).toFixed(1)} fps` : null],
     ["File size", formatBytes(asset.size)],
     ["Modified", formatDate(asset.mtime)],
     ["Project", detail.projectName],
@@ -78,7 +87,15 @@ function Details({ detail, embedded }: { detail: AssetDetail; embedded: boolean 
           onClick={() => openViewer(asset.id)}
           className="group bg-checker relative flex aspect-square items-center justify-center overflow-hidden rounded-md border border-iron-700"
         >
-          {asset.thumbReady ? (
+          {asset.kind === "anim" ? (
+            <Reel
+              asset={asset}
+              className={cn(
+                "max-h-full max-w-full object-contain",
+                isPixelArt(asset) && "pixelated size-full",
+              )}
+            />
+          ) : asset.thumbReady ? (
             <img
               src={thumbUrl(asset, epoch)}
               alt=""
@@ -102,7 +119,7 @@ function Details({ detail, embedded }: { detail: AssetDetail; embedded: boolean 
             className="min-w-0 flex-1 font-display text-2xl leading-tight break-words text-bone"
             data-selectable
           >
-            {asset.name}
+            {displayName(asset)}
           </h3>
           <Button
             variant="ghost"

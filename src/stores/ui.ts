@@ -11,6 +11,8 @@ export type Filters = {
   favoritesOnly: boolean;
   hideDuplicates: boolean;
   hideArtifacts: boolean;
+  /** Show a folder of numbered frames as one animation instead of loose images. */
+  groupFrames: boolean;
   minPx: number | null;
   sort: SortKey;
   desc: boolean;
@@ -23,6 +25,7 @@ export const DEFAULT_FILTERS: Filters = {
   favoritesOnly: false,
   hideDuplicates: true,
   hideArtifacts: false,
+  groupFrames: true,
   minPx: null,
   sort: "path",
   desc: false,
@@ -119,6 +122,15 @@ export const useUi = create<UiState>()(
         smoothing: s.smoothing,
         thumbEpoch: s.thumbEpoch,
       }),
+      // Filters saved by an older build lack newer keys; fill them from the defaults.
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<UiState> | undefined;
+        return {
+          ...current,
+          ...saved,
+          filters: { ...DEFAULT_FILTERS, ...saved?.filters },
+        };
+      },
     },
   ),
 );
