@@ -19,6 +19,7 @@ export function useAssetQuery(): AssetQuery {
       favoritesOnly: filters.favoritesOnly,
       hideDuplicates: filters.hideDuplicates,
       hideArtifacts: filters.hideArtifacts,
+      groupFrames: filters.groupFrames,
       minPx: filters.minPx,
       sort: filters.sort,
       desc: filters.desc,
@@ -37,9 +38,10 @@ export function useAssets() {
 }
 
 export function useKindCounts(projectId: number | null) {
+  const groupFrames = useUi((s) => s.filters.groupFrames);
   return useQuery({
-    queryKey: qk.kinds(projectId),
-    queryFn: () => commands.kindCounts(projectId),
+    queryKey: qk.kinds(projectId, groupFrames),
+    queryFn: () => commands.kindCounts(projectId, groupFrames),
   });
 }
 

@@ -9,9 +9,10 @@ export function useProjects() {
 }
 
 export function useFolders(projectId: number | null) {
+  const groupFrames = useUi((s) => s.filters.groupFrames);
   return useQuery({
-    queryKey: qk.folders(projectId ?? -1),
-    queryFn: () => commands.listFolders(projectId as number),
+    queryKey: qk.folders(projectId ?? -1, groupFrames),
+    queryFn: () => commands.listFolders(projectId as number, groupFrames),
     enabled: projectId != null,
   });
 }

@@ -72,6 +72,7 @@ export function FilterBar() {
     Number(filters.favoritesOnly) +
     Number(filters.hideArtifacts) +
     Number(filters.hideDuplicates !== DEFAULT_FILTERS.hideDuplicates) +
+    Number(filters.groupFrames !== DEFAULT_FILTERS.groupFrames) +
     Number(filters.minPx != null);
 
   return (
@@ -259,6 +260,12 @@ export function FilterBar() {
               onCheckedChange={(v) => setFilters({ hideArtifacts: !!v })}
             >
               Hide artifacts/ folders
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={filters.groupFrames}
+              onCheckedChange={(v) => setFilters({ groupFrames: !!v })}
+            >
+              Group frames into animations
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Minimum size</DropdownMenuLabel>

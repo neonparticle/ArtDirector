@@ -1,4 +1,13 @@
-import { Box, Boxes, FileImage, Film, Grid3x3, Layers, type LucideIcon } from "lucide-react";
+import {
+  Box,
+  Boxes,
+  Clapperboard,
+  FileImage,
+  Film,
+  Grid3x3,
+  Layers,
+  type LucideIcon,
+} from "lucide-react";
 import type { AssetKind, AssetSummary } from "@/lib/bindings";
 
 export function formatBytes(bytes: number | null | undefined): string {
@@ -45,6 +54,7 @@ export function formatCount(n: number): string {
 
 export const KIND_META: Record<AssetKind, { label: string; plural: string; icon: LucideIcon }> = {
   image: { label: "Image", plural: "Images", icon: FileImage },
+  anim: { label: "Animation", plural: "Animations", icon: Clapperboard },
   sheet: { label: "Sheet", plural: "Sheets", icon: Grid3x3 },
   aseprite: { label: "Aseprite", plural: "Aseprite", icon: Film },
   model: { label: "Model", plural: "Models", icon: Box },
@@ -52,7 +62,24 @@ export const KIND_META: Record<AssetKind, { label: string; plural: string; icon:
   source: { label: "Source", plural: "Sources", icon: Layers },
 };
 
-export const KIND_ORDER: AssetKind[] = ["image", "sheet", "aseprite", "model", "blend", "source"];
+export const KIND_ORDER: AssetKind[] = [
+  "image",
+  "anim",
+  "sheet",
+  "aseprite",
+  "model",
+  "blend",
+  "source",
+];
+
+/**
+ * Animations are named for their folder, which is often just a direction ("east");
+ * leading with the parent folder ("attack/east") tells sibling actions apart.
+ */
+export function displayName(a: Pick<AssetSummary, "kind" | "name" | "dir">): string {
+  if (a.kind !== "anim" || !a.dir) return a.name;
+  return `${a.dir.slice(a.dir.lastIndexOf("/") + 1)}/${a.name}`;
+}
 
 /** Small sources are pixel art; render them with hard pixel edges. */
 export function isPixelArt(a: Pick<AssetSummary, "width" | "height" | "kind">): boolean {

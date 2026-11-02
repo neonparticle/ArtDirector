@@ -58,6 +58,15 @@ pub async fn clear_sheet(state: State<'_, AppState>, id: i64) -> Result<()> {
 
 #[tauri::command]
 #[specta::specta]
+pub async fn set_anim_fps(state: State<'_, AppState>, id: i64, fps: f64) -> Result<()> {
+    if !(fps.is_finite() && fps > 0.0 && fps <= 120.0) {
+        return Err(Error::msg("frame rate must be between 0 and 120"));
+    }
+    queries::set_anim_fps(&*state.db.get()?, id, fps)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn save_model_thumb(state: State<'_, AppState>, id: i64, data_url: String) -> Result<()> {
     let conn = state.db.get()?;
     let row = queries::get_asset_row(&conn, id)?;

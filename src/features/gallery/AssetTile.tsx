@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2, RotateCcw, Star } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { memo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Hint } from "@/components/ui/tooltip";
@@ -7,9 +8,10 @@ import {
   useCaptureState,
   useCaptureStore,
 } from "@/features/viewer/model/captureQueue";
+import { Reel } from "@/features/viewer/Reel";
 import { thumbUrl } from "@/lib/asset-url";
 import type { AssetSummary } from "@/lib/bindings";
-import { formatDims, isPixelArt, KIND_META } from "@/lib/format";
+import { displayName, formatDims, isPixelArt, KIND_META } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -39,6 +41,14 @@ export const AssetTile = memo(function AssetTile({
   const capture = useCaptureState(asset);
   const captureError = useCaptureError(asset.id);
   const showThumb = asset.thumbReady && failedVersion !== version;
+  const anim = asset.kind === "anim";
+  const reduceMotion = useReducedMotion();
+  const [hovered, setHovered] = useState(false);
+  const thumbClass = cn(
+    "max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]",
+    pixel && "pixelated",
+    pixel ? "h-full w-full" : "",
+  );
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: keyboard navigation is handled by the grid's window-level hotkeys
@@ -47,6 +57,8 @@ export const AssetTile = memo(function AssetTile({
       data-asset-id={asset.id}
       onClick={() => onSelect(asset.id)}
       onDoubleClick={() => onOpen(asset.id)}
+      onMouseEnter={anim ? () => setHovered(true) : undefined}
+      onMouseLeave={anim ? () => setHovered(false) : undefined}
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-md bg-iron-900/70 transition-[box-shadow,transform] duration-150",
         selected ? "tile-glow" : "hover:tile-hover shadow-[0_0_0_1px_var(--color-iron-700)]",
@@ -57,7 +69,14 @@ export const AssetTile = memo(function AssetTile({
         className="bg-checker-subtle relative flex items-center justify-center overflow-hidden"
         style={{ height: size }}
       >
-        {showThumb ? (
+        {showThumb && anim ? (
+          <Reel
+            asset={asset}
+            playing={!reduceMotion || hovered}
+            onError={() => setFailedVersion(version)}
+            className={thumbClass}
+          />
+        ) : showThumb ? (
           <img
             src={thumbUrl(asset, epoch)}
             alt={asset.name}
@@ -65,11 +84,7 @@ export const AssetTile = memo(function AssetTile({
             decoding="async"
             draggable={false}
             onError={() => setFailedVersion(version)}
-            className={cn(
-              "max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]",
-              pixel && "pixelated",
-              pixel ? "h-full w-full" : "",
-            )}
+            className={thumbClass}
           />
         ) : (
           <div className="flex flex-col items-center gap-2 text-dust">
@@ -109,7 +124,7 @@ export const AssetTile = memo(function AssetTile({
             <Badge
               variant={asset.kind === "model" || asset.kind === "blend" ? "plasma" : "default"}
             >
-              {asset.kind === "aseprite" && asset.frameCount
+              {(asset.kind === "aseprite" || anim) && asset.frameCount
                 ? `${asset.frameCount}f`
                 : KIND_META[asset.kind].label}
             </Badge>
@@ -145,7 +160,7 @@ export const AssetTile = memo(function AssetTile({
           )}
           title={asset.relPath}
         >
-          {asset.name}
+          {displayName(asset)}
         </span>
         {dims && <span className="shrink-0 font-mono text-[9.5px] text-dust">{dims}</span>}
       </div>

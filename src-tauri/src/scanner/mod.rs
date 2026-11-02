@@ -1,4 +1,5 @@
 mod classify;
+pub mod sequences;
 pub mod walk;
 
 pub use classify::{is_supported, AssetKind};
@@ -190,7 +191,8 @@ pub fn scan_project<R: Runtime>(
     let existing: HashMap<String, Existing> = {
         let conn = state.db.get()?;
         let mut stmt = conn.prepare(
-            "SELECT id, rel_path, size, mtime, hash IS NOT NULL, kind FROM assets WHERE project_id = ?1",
+            "SELECT id, rel_path, size, mtime, hash IS NOT NULL, kind FROM assets
+             WHERE project_id = ?1 AND kind != 'anim'",
         )?;
         let rows = stmt.query_map([project_id], |r| {
             Ok((
@@ -384,6 +386,11 @@ fn write_outcomes(
             }
         }
     }
+
+    let seq = sequences::rebuild(&tx, project_id)?;
+    stats.added += seq.added;
+    stats.updated += seq.updated;
+    stats.removed += seq.removed;
 
     tx.execute(
         "UPDATE projects SET last_scan_at = ?2,

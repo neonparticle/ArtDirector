@@ -7,7 +7,7 @@ use image::{DynamicImage, ExtendedColorType, RgbaImage};
 
 use super::cache;
 use crate::error::{Error, Result};
-use crate::formats::{aseprite, image as img};
+use crate::formats::{aseprite, image as img, sequence};
 use crate::index::queries::AssetRow;
 use crate::scanner::AssetKind;
 
@@ -32,12 +32,15 @@ pub enum Thumb {
 pub fn thumb_for(cache_dir: &std::path::Path, row: &AssetRow, size: u32) -> Result<Thumb> {
     match row.kind {
         AssetKind::Image | AssetKind::Sheet if row.ext == "svg" => Ok(Thumb::Original),
-        AssetKind::Image | AssetKind::Sheet | AssetKind::Aseprite => {
+        AssetKind::Image | AssetKind::Sheet | AssetKind::Aseprite | AssetKind::Anim => {
             let key = cache::key(row, &format!("t{size}"));
             let path = cache::thumb_path(cache_dir, &key);
             if !path.exists() {
                 let source = match row.kind {
                     AssetKind::Aseprite => aseprite::first_frame(&row.path())?,
+                    AssetKind::Anim => {
+                        img::load(&sequence::first_frame(&row.path(), &row.ext)?)?.into_rgba8()
+                    }
                     _ => img::load(&row.path())?.into_rgba8(),
                 };
                 let bytes = encode_webp(&fit(source, size)?)?;

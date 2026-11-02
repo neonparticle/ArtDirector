@@ -2,6 +2,7 @@ pub mod aseprite;
 pub mod blend;
 pub mod image;
 pub mod model;
+pub mod sequence;
 pub mod spritesheet;
 
 pub fn mime_for_ext(ext: &str) -> &'static str {
